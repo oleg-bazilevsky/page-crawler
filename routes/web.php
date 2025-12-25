@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CrawlController;
 use App\Livewire\Settings\Appearance;
 use App\Livewire\Settings\Password;
 use App\Livewire\Settings\Profile;
@@ -32,4 +33,6 @@ Route::middleware(['auth'])->group(function () {
             ),
         )
         ->name('two-factor.show');
+
+    Route::post('/crawler/crawl', [CrawlController::class, 'crawl']);
 });
