@@ -12,7 +12,7 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule): void
     {
-        // $schedule->command('crawl-pages')->everyMinute()->withoutOverlapping();
+        Schedule::command('telescope:prune')->daily();
     }
 
     /**

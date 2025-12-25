@@ -5,7 +5,7 @@ namespace App\DTO\Crawler;
 /**
  * @psalm-immutable
  */
-final readonly class InternalLinkDTO
+class InternalLinkDTO
 {
     public function __construct(
         public string $targetUrl,

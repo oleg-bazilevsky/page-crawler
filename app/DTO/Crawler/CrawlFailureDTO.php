@@ -2,7 +2,7 @@
 
 namespace App\DTO\Crawler;
 
-final readonly class CrawlFailureDTO
+class CrawlFailureDTO
 {
     public function __construct(
         public string $url,

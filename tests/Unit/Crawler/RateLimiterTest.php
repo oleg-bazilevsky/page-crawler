@@ -1,43 +1,52 @@
 <?php
 
-namespace Tests\Unit\Crawler;
-
 use App\Services\Crawler\RateLimiter;
 use Illuminate\Support\Facades\Redis;
-use Tests\TestCase;
 
-class RateLimiterTest extends TestCase
-{
-    protected function setUp(): void
-    {
-        parent::setUp();
-        Redis::flushall();
-    }
+// No "uses(Tests\TestCase::class)" needed!
 
-    public function test_allows_requests_under_limit(): void
-    {
-        $limiter = new RateLimiter(2, 10);
+beforeEach(function () {
+    Redis::flushall();
+});
 
-        $this->assertTrue($limiter->allow('https://example.com'));
-        $this->assertTrue($limiter->allow('https://example.com'));
-        $this->assertFalse($limiter->allow('https://example.com'));
-    }
+it('allows requests under the rate limit', function () {
+    $limiter = new RateLimiter(2, 10); // 2 requests per 10 seconds
 
-    public function test_limits_are_per_host(): void
-    {
-        $limiter = new RateLimiter(1, 10);
+    expect($limiter->allow('https://example.com'))->toBeTrue();
+    expect($limiter->allow('https://example.com'))->toBeTrue();
+    expect($limiter->allow('https://example.com'))->toBeFalse();
+});
 
-        $this->assertTrue($limiter->allow('https://example.com'));
-        $this->assertTrue($limiter->allow('https://another.com'));
-    }
+it('applies limits separately per host', function () {
+    $limiter = new RateLimiter(1, 10); // 1 request per 10 seconds per host
 
-    public function test_retry_after_returns_ttl(): void
-    {
-        $limiter = new RateLimiter(1, 10);
+    expect($limiter->allow('https://example.com'))->toBeTrue();
+    expect($limiter->allow('https://example.com'))->toBeFalse();
 
-        $limiter->allow('https://example.com');
-        $limiter->allow('https://example.com');
+    expect($limiter->allow('https://another.com'))->toBeTrue();
+    expect($limiter->allow('https://another.com'))->toBeFalse();
+});
 
-        $this->assertGreaterThan(0, $limiter->retryAfter('https://example.com'));
-    }
-}
+it('returns the correct retry-after TTL when limit is exceeded', function () {
+    $limiter = new RateLimiter(1, 10);
+
+    $limiter->allow('https://example.com'); // First request allowed
+    $limiter->allow('https://example.com'); // Second request blocked
+
+    $retryAfter = $limiter->retryAfter('https://example.com');
+
+    expect($retryAfter)->toBeInt();
+    expect($retryAfter)->toBeGreaterThan(0);
+    expect($retryAfter)->toBeLessThanOrEqual(10);
+});
+
+it('resets the limit after the window expires', function () {
+    $limiter = new RateLimiter(1, 1); // 1 request per 1 second
+
+    $limiter->allow('https://example.com'); // Allowed
+    $limiter->allow('https://example.com'); // Denied
+
+    sleep(2); // Wait longer than window
+
+    expect($limiter->allow('https://example.com'))->toBeTrue();
+});

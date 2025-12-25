@@ -5,7 +5,7 @@ namespace App\DTO\Crawler;
 /**
  * @psalm-immutable
  */
-final readonly class CrawledPageDTO
+class CrawledPageDTO
 {
     /**
      * @param InternalLinkDTO[] $internalLinks

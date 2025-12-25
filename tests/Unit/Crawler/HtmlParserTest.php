@@ -1,23 +1,13 @@
 <?php
 
-namespace Tests\Unit\Crawler;
-
 use App\Services\Crawler\HtmlParser;
-use PHPUnit\Framework\TestCase;
 
-class HtmlParserTest extends TestCase
-{
-    private HtmlParser $parser;
+beforeEach(function () {
+    $this->parser = new HtmlParser();
+});
 
-    protected function setUp(): void
-    {
-        parent::setUp();
-        $this->parser = new HtmlParser();
-    }
-
-    public function test_it_extracts_title_h1_and_body_text(): void
-    {
-        $html = <<<HTML
+it('extracts title, h1, and body text correctly', function () {
+    $html = <<<'HTML'
 <!DOCTYPE html>
 <html>
 <head>
@@ -36,23 +26,36 @@ class HtmlParserTest extends TestCase
 </html>
 HTML;
 
-        $result = $this->parser->parse($html);
+    $result = $this->parser->parse($html);
 
-        $this->assertSame('Test Page', $result['title']);
-        $this->assertSame('Main Heading', $result['h1']);
-        $this->assertSame('This is some text. More text here.', $result['body_text']);
-        $this->assertSame(6, $result['word_count']);
-    }
+    expect($result)
+        ->toBeArray()
+        ->title->toBe('Test Page')
+        ->h1->toBe('Main Heading')
+        ->body_text->toBe('Main Heading This is some text. More text here.')
+        ->word_count->toBe(9);
+});
 
-    public function test_it_handles_missing_elements_gracefully(): void
-    {
-        $html = '<html><body><p>Only text</p></body></html>';
+it('handles missing elements gracefully', function () {
+    $html = '<html><body><p>Only text</p></body></html>';
 
-        $result = $this->parser->parse($html);
+    $result = $this->parser->parse($html);
 
-        $this->assertNull($result['title']);
-        $this->assertNull($result['h1']);
-        $this->assertSame('Only text', $result['body_text']);
-        $this->assertSame(2, $result['word_count']);
-    }
-}
+    expect($result)
+        ->toBeArray()
+        ->title->toBeNull()
+        ->h1->toBeNull()
+        ->body_text->toBe('Only text')
+        ->word_count->toBe(2);
+});
+
+it('handles empty or malformed HTML', function () {
+    $result = $this->parser->parse('');
+
+    expect($result)
+        ->toBeArray()
+        ->title->toBeNull()
+        ->h1->toBeNull()
+        ->body_text->toBe('')
+        ->word_count->toBe(0);
+});

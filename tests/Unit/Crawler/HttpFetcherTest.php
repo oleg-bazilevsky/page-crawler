@@ -1,45 +1,48 @@
 <?php
 
-namespace Tests\Unit\Crawler;
-
 use App\Services\Crawler\HttpFetcher;
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\Psr7\Response;
 use GuzzleHttp\HandlerStack;
-use PHPUnit\Framework\TestCase;
 
-class HttpFetcherTest extends TestCase
-{
-    public function test_fetch_returns_html_on_200(): void
-    {
-        $mock = new MockHandler([
-            new Response(200, [], '<html>OK</html>')
-        ]);
+beforeEach(function () {
+    $this->mockHandler = new MockHandler();
+    $this->client = new Client([
+        'handler' => HandlerStack::create($this->mockHandler),
+    ]);
+    $this->fetcher = new HttpFetcher($this->client);
+});
 
-        $client = new Client([
-            'handler' => HandlerStack::create($mock),
-        ]);
+it('returns HTML content when the response is 200 OK', function () {
+    $this->mockHandler->append(
+        new Response(200, [], '<html>OK</html>')
+    );
 
-        $fetcher = new HttpFetcher($client);
+    $result = $this->fetcher->fetch('https://example.com');
 
-        $result = $fetcher->fetch('https://example.com');
+    expect($result)->toBe('<html>OK</html>');
+});
 
-        $this->assertSame('<html>OK</html>', $result);
-    }
+it('returns null when the response is not 200 OK', function () {
+    $this->mockHandler->append(
+        new Response(404)
+    );
 
-    public function test_fetch_returns_null_on_non_200(): void
-    {
-        $mock = new MockHandler([
-            new Response(404)
-        ]);
+    $result = $this->fetcher->fetch('https://example.com');
 
-        $client = new Client([
-            'handler' => HandlerStack::create($mock),
-        ]);
+    expect($result)->toBeNull();
+});
 
-        $fetcher = new HttpFetcher($client);
+it('returns null when an exception occurs during fetch', function () {
+    $this->mockHandler->append(
+        new \GuzzleHttp\Exception\RequestException(
+            'Connection failed',
+            new \GuzzleHttp\Psr7\Request('GET', 'https://example.com')
+        )
+    );
 
-        $this->assertNull($fetcher->fetch('https://example.com'));
-    }
-}
+    $result = $this->fetcher->fetch('https://example.com');
+
+    expect($result)->toBeNull();
+});

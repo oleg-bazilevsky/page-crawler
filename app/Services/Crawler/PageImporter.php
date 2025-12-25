@@ -7,7 +7,7 @@ use App\DTO\Crawler\CrawledPageDTO;
 use App\DTO\Crawler\InternalLinkDTO;
 use GuzzleHttp\Exception\GuzzleException;
 
-readonly class PageImporter
+class PageImporter
 {
     public function __construct(
         private HttpFetcher           $fetcher,
@@ -20,11 +20,14 @@ readonly class PageImporter
      * @param string $url
      *
      * @return CrawledPageDTO|null
-     * @throws GuzzleException
      */
     public function crawl(string $url): ?CrawledPageDTO
     {
-        $html = $this->fetcher->fetch($url);
+        try {
+            $html = $this->fetcher->fetch($url);
+        } catch (GuzzleException $e) {
+            return null;
+        }
 
         if (!$html) {
             return null;

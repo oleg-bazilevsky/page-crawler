@@ -1,25 +1,36 @@
 <?php
 
-namespace Tests\Unit\Crawler;
-
+use App\DTO\Crawler\CrawledPageDTO;
 use App\Jobs\CrawlPageJob;
+use App\Services\Crawler\CrawledPagePersister;
 use App\Services\Crawler\PageImporter;
-use PHPUnit\Framework\MockObject\Exception;
-use PHPUnit\Framework\TestCase;
+use App\Services\Crawler\RateLimiter;
+use Mockery\MockInterface;
 
-class CrawlPageJobTest extends TestCase
-{
-    /**
-     * @throws Exception
-     */
-    public function test_job_calls_importer(): void
-    {
-        $importer = $this->createMock(PageImporter::class);
-        $importer->expects($this->once())
-            ->method('import')
-            ->with('https://example.com');
+it('calls the importer when handling the job', function () {
+    $importer = mock(PageImporter::class);
+    $persister = mock(CrawledPagePersister::class);
+    $rateLimiter = mock(RateLimiter::class);
 
-        $job = new CrawlPageJob('https://example.com');
-        $job->handle($importer);
-    }
-}
+    $rateLimiter
+        ->shouldReceive('allow')
+        ->with('https://example.com')
+        ->once()
+        ->andReturn(true);
+
+    $importer
+        ->shouldReceive('crawl')
+        ->with('https://example.com')
+        ->once()
+        ->andReturn(
+            mock(CrawledPageDTO::class)
+        );
+
+    $persister
+        ->shouldReceive('persist')
+        ->once();
+
+    $job = new CrawlPageJob('https://example.com');
+    $job->handle($importer, $persister, $rateLimiter);
+
+});
