@@ -3,10 +3,44 @@
 use App\Services\Crawler\RateLimiter;
 use Illuminate\Support\Facades\Redis;
 
-// No "uses(Tests\TestCase::class)" needed!
-
 beforeEach(function () {
-    Redis::flushall();
+    $store = [];
+    $expirations = [];
+
+    Redis::shouldReceive('incr')
+        ->andReturnUsing(function ($key) use (&$store, &$expirations) {
+            // If key is expired, reset count before incrementing
+            if (isset($expirations[$key]) && ($expirations[$key] - time() <= 0)) {
+                unset($store[$key]);
+                unset($expirations[$key]);
+            }
+
+            $store[$key] = ($store[$key] ?? 0) + 1;
+            return $store[$key];
+        });
+
+    Redis::shouldReceive('expire')
+        ->andReturnUsing(function ($key, $seconds) use (&$expirations) {
+            $expirations[$key] = time() + $seconds;
+            return true;
+        });
+
+    Redis::shouldReceive('ttl')
+        ->andReturnUsing(function ($key) use (&$expirations) {
+            if (!isset($expirations[$key])) {
+                return -1; // key doesn't exist
+            }
+            $remaining = $expirations[$key] - time();
+            return $remaining > 0 ? $remaining : -2; // -2 means expired (real Redis behavior)
+        });
+
+    Redis::shouldReceive('del')
+        ->andReturnUsing(function ($key) use (&$store, &$expirations) {
+            unset($store[$key], $expirations[$key]);
+            return 1;
+        });
+
+    Redis::shouldReceive('connection')->andReturnSelf();
 });
 
 it('allows requests under the rate limit', function () {
